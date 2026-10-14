@@ -1,0 +1,35 @@
+# Epic: blob-starter (BL)
+
+**Vercel's Blob starter is an uploader and a delivery route around a store that is Vercel's. On Cloudflare the store is R2, the bucket comes from Terraform through Orun, and its name reaches the Worker through the wiring documents the Cirrus baseline uses for every binding. The one real difference is how bytes get in: Vercel Blob's client asks the app for a token and uploads straight to Vercel; here the upload route is the bucket's front door, with the same image-only and 50MB checks, the same random suffix, the same result shape — so the uploader component changes one import line.**
+
+The port keeps the template's page, uploader, progress bar, toasts and styles. It adds `lib/blob/{client,server}.ts` (the two halves of what `@vercel/blob` did), rewrites the two route handlers against the `BLOB` R2 binding, and adds the Workers build, the monorepo wrapper, a test package for both routes, the R2 Terraform root, and the deploy contract.
+
+## Status
+
+| Field | Value |
+|-------|-------|
+| Status | Draft |
+| Cluster | **BL** (BL0–BL3) |
+| Owner(s) | `apps/web` (the uploader, the routes, `lib/blob`) · `tests/web` · `infra/terraform/cloudflare-r2` |
+| Builds on | `cirrus-baseline` conventions: the R2 root and the `@@wiring(...)@@` deploy-time render; the `kv-redis-starter` port's binding shape |
+| Upstream | [vercel/examples `storage/blob-starter`](https://github.com/vercel/examples/tree/main/storage/blob-starter) |
+| Changes | The store (Vercel Blob → R2), the upload path (client token → upload route), the Workers build, tests, the R2 root, the deploy contract; page copy says R2 |
+| Decisions locked | (1) The upload goes through the Worker (one route, bounded at 50MB), not a presigned R2 URL: it keeps the template's server-side checks where they were. (2) Delivery stays a private route (`/api/blob?pathname=`), as upstream. (3) `wrangler.jsonc` rendered per environment; never committed. |
+| Gate | BL1 is the first user-visible rung. BL2 applies only with a linked workspace; verified by `terraform validate`. |
+| Shipped as | |
+
+## Read order
+
+1. `design.md` — what maps to what, the upload flow, what is out of scope
+2. `implementation-plan.md` — the milestones and what "done" means for each
+3. `risks-and-open-questions.md` — what could go wrong and what was decided
+4. `IMPLEMENTATION-STATUS.md` — what actually shipped (kept distinct from intent)
+
+## Milestones at a glance
+
+| Milestone | What it lands | Done when |
+|---|---|---|
+| BL0 — the spec | this doc set and the task contracts | merged on `main` |
+| BL1 — uploads on R2 | `apps/web`, the rendered wrangler config, `tests/web` | upload + delivery work under `wrangler dev`; Checks green |
+| BL2 — the R2 bucket from Terraform | `infra/terraform/cloudflare-r2` | the root validates; the wiring key matches the template |
+| BL3 — ready to instantiate | README, as-built status | a reader can run, test, preview and deploy it |

@@ -1,0 +1,15 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+spec:
+  goal: The upstream Blob starter runs on Cloudflare Workers with uploads and delivery on R2, a per-environment rendered wrangler config and green checks
+  affects:
+    - apps/web
+    - tests/web
+    - pnpm-lock.yaml
+    - package.json
+    - turbo.json
+  doneWhen:
+    - pnpm wire:fixture, typecheck, lint, test and build are green in Checks
+    - wrangler dev accepts an image upload and streams it back
+  gates:
+    - checks

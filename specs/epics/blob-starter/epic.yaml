@@ -1,0 +1,33 @@
+# The epic's declaration. metadata.name equals the directory name; metadata.key
+# is the task-key prefix this epic reserves (BL → BL-1, BL-2, …). Owner, target
+# date and health are the platform's — never written here.
+apiVersion: orun.io/v1
+kind: Epic
+metadata:
+  name: blob-starter
+  key: BL
+spec:
+  title: "Vercel's Blob Next.js Starter on Cloudflare Workers with R2"
+  summary: "The Vercel Blob Next.js Starter — an image uploader with drag-and-drop, a preview, a progress bar, image-only and 50MB checks, and a private delivery route — runs on Cloudflare Workers + Static Assets through @opennextjs/cloudflare with the files in a Cloudflare R2 bucket provisioned by Terraform through Orun, inside the Cirrus baseline's repository conventions. Vercel Blob's client-token upload becomes an upload route in front of the bucket, with the same checks and the same result shape, so the uploader component stays as written."
+  state: backlog
+  milestones:
+    - name: "BL0 — the spec"
+      exitCriteria:
+        - "the doc set and the task contracts are on main"
+      tasks: [BL-1]
+    - name: "BL1 — uploads on R2"
+      exitCriteria:
+        - "apps/web is the upstream template with uploads and delivery going through the BLOB R2 binding"
+        - "the wrangler config renders per environment from the cloudflare-r2 root's wiring document (fixture in verify, live in deploy)"
+        - "`pnpm typecheck`, `pnpm lint`, `pnpm test` and `pnpm build` are green on main (Checks)"
+        - "`wrangler dev` serves the page, accepts an image on PUT /api/upload and streams it back from GET /api/blob"
+      tasks: [BL-2]
+    - name: "BL2 — the R2 bucket from Terraform"
+      exitCriteria:
+        - "infra/terraform/cloudflare-r2 provisions the stage and prod buckets and publishes the wiring document the app renders from"
+      tasks: [BL-3]
+    - name: "BL3 — ready to instantiate"
+      exitCriteria:
+        - "the README says how to run, test, preview and deploy it, and where the authentication hooks are"
+        - "the as-built status records every departure from the upstream template"
+      tasks: [BL-4]

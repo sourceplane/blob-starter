@@ -1,0 +1,12 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+spec:
+  goal: The R2 bucket per environment is provisioned by Terraform through Orun and publishes the wiring document the app renders from
+  affects:
+    - infra/terraform/cloudflare-r2
+    - apps/web/component.yaml
+    - apps/web/wiring.fixture.json
+  doneWhen:
+    - terraform validate passes on infra/terraform/cloudflare-r2
+    - the wiring key matches the template's token
+  gates: []
