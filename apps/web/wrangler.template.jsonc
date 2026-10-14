@@ -1,0 +1,24 @@
+// Rendered to wrangler.jsonc (git-ignored) by tooling/wire: the verify lane
+// renders from wiring.fixture.json, the deploy lane from the wiring document
+// the `cloudflare-r2` Terraform root lease-publishes (WIRING_CLOUDFLARE_R2_<ENV>).
+// The workers-assets composition deploys one environment per job with no
+// wrangler `--env`, so `__ENV__` names the environment this is rendered for.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "blob-starter-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  // The uploads' store — Cloudflare R2 in place of Vercel Blob.
+  "r2_buckets": [
+    {
+      "binding": "BLOB",
+      "bucket_name": "@@wiring(cloudflare-r2/__ENV__:r2_bucket_name)@@"
+    }
+  ]
+}
