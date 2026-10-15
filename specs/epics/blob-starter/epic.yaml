@@ -9,7 +9,7 @@ metadata:
 spec:
   title: "Vercel's Blob Next.js Starter on Cloudflare Workers with R2"
   summary: "The Vercel Blob Next.js Starter — an image uploader with drag-and-drop, a preview, a progress bar, image-only and 50MB checks, and a private delivery route — runs on Cloudflare Workers + Static Assets through @opennextjs/cloudflare with the files in a Cloudflare R2 bucket provisioned by Terraform through Orun, inside the Cirrus baseline's repository conventions. Vercel Blob's client-token upload becomes an upload route in front of the bucket, with the same checks and the same result shape, so the uploader component stays as written."
-  state: backlog
+  state: completed
   milestones:
     - name: "BL0 — the spec"
       exitCriteria:
