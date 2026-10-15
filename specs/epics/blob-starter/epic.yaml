@@ -31,3 +31,11 @@ spec:
         - "the README says how to run, test, preview and deploy it, and where the authentication hooks are"
         - "the as-built status records every departure from the upstream template"
       tasks: [BL-4]
+    - name: "BL4 — a baseline, in one landing"
+      exitCriteria:
+        - "blueprint.yaml (the console card) and repo-blueprint.yaml (the build) take a new product from nothing to live on stage and prod in ONE landing (01-product) and a hook-only record (02-docs)"
+        - "the product's own push-to-main plan applies cloudflare-r2 before it deploys web, and the landing's await finds WIRING_CLOUDFLARE_R2 on stage and prod"
+        - "the R2 root applies with an r2-data token (CLOUDFLARE_R2_TOKEN) the card previews; the Worker deploys with workers-deploy and reaches its bucket through its binding, so uploads need no other key"
+        - "a product built from it carries the product only, renamed throughout to its own name, repository, Worker and bucket names"
+        - "Baseline CI is green: contract tests, the blueprint read by the pinned orun, the leak gate, the offline bootstrap and the end-to-end tier"
+      tasks: [BL-5]

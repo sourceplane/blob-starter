@@ -12,10 +12,19 @@ spec:
   # Its own lane per environment: the Next.js build is the longest job in the
   # plan, and a shared lane would wait on it.
   lane: isolated
-  # The R2 bucket must exist before this deploys: its name is rendered into
-  # the wrangler config from the cloudflare-r2 root's wiring document.
+  # INFRA BEFORE APP. The Worker binds the R2 bucket by name, and the name is
+  # rendered into its config during the build from the wiring document the
+  # cloudflare-r2 root lease-publishes after its apply. A job resolves its
+  # secrets when it STARTS, so on a merge to main this deploy waits for that
+  # environment's apply (enforced) and the document is there; a pull request
+  # deploys nothing, so nothing on one waits (advisory).
   dependsOn:
     - component: cloudflare-r2
+      mode: enforced
+      modeRules:
+        - mode: advisory
+          when:
+            triggerRef: github-pull-request
   secretEnv:
     WIRING_CLOUDFLARE_R2_STAGE: "secret://blob-starter/blob-starter/stage/WIRING_CLOUDFLARE_R2"
     WIRING_CLOUDFLARE_R2_PROD: "secret://blob-starter/blob-starter/prod/WIRING_CLOUDFLARE_R2"
@@ -59,13 +68,23 @@ spec:
     workersDevSubdomain: your-workers-subdomain
 
     installCommand: pnpm install --frozen-lockfile
-    # Render this environment's wrangler config from the wiring document, then
-    # build (the verify lane already rendered from the fixture through
-    # `wire:fixture`; a deploy lane re-renders with the real bucket name).
-    buildCommand: node ../../tooling/wire/live.mjs --template wrangler.template.jsonc --out wrangler.jsonc --components cloudflare-r2 --env "${ORUN_ENVIRONMENT}" && pnpm exec turbo run build --filter=@app/web
+    # Render this environment's wrangler config, then build. stage and prod
+    # render from the wiring document their cloudflare-r2 apply published
+    # (secretEnv above, resolved before the job's first step); dev, which no
+    # root applies to and which only verifies, renders from the committed
+    # fixture. The committed wrangler.jsonc (the fixture render) is what the
+    # composition's verify-app-structure step finds before this runs.
+    buildCommand: node ../../tooling/wire/live.mjs --template wrangler.template.jsonc --out wrangler.jsonc --components cloudflare-r2 --env "${ORUN_ENVIRONMENT}" --fixture wiring.fixture.json --fixture-envs dev && pnpm exec turbo run build --filter=@app/web
 
-    # Smoke: the home page renders and carries the app's marker text.
-    smokeCommand: "html=$(curl -sfL \"${DEPLOYED_URL}/\") && echo \"${html}\" | grep -q 'R2 on Cloudflare'"
+    # Smoke, read-only: the delivery route asked for an object nobody stored —
+    # a new key on every attempt — must answer the route's own `Not found`
+    # 404, which only the Worker can, and only by reading the BLOB bucket (an
+    # unbound or unreachable bucket is a 500). Then the page renders its
+    # uploader. Not the site's name: that is the owner's to change, and
+    # HTML-escaped when it carries an `&` or `'`. Nothing is uploaded, so a
+    # deploy leaves the bucket as it found it. Responses are buffered before
+    # grep so an early match cannot SIGPIPE curl.
+    smokeCommand: "out=$(curl -s -w ' %{http_code}' \"${DEPLOYED_URL}/api/blob?pathname=smoke/$(date +%s)-${RANDOM}.png\") && [ \"${out}\" = 'Not found 404' ] && html=$(curl -sfL \"${DEPLOYED_URL}/\") && echo \"${html}\" | grep -q 'Upload an image'"
   labels:
     team: platform
     layer: delivery

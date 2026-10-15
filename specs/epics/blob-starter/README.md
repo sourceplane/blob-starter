@@ -8,13 +8,13 @@ The port keeps the template's page, uploader, progress bar, toasts and styles. I
 
 | Field | Value |
 |-------|-------|
-| Status | ✅ Shipped — BL0–BL3 landed (#1–#4); R2 apply and live deploy gated on a linked workspace |
-| Cluster | **BL** (BL0–BL3) |
+| Status | ✅ Shipped — BL0–BL3 landed (#1–#4); BL4 — a baseline, in one landing (BL-5); R2 apply and live deploy proven only by a live bootstrap |
+| Cluster | **BL** (BL0–BL4) |
 | Owner(s) | `apps/web` (the uploader, the routes, `lib/blob`) · `tests/web` · `infra/terraform/cloudflare-r2` |
 | Builds on | `cirrus-baseline` conventions: the R2 root and the `@@wiring(...)@@` deploy-time render; the `kv-redis-starter` port's binding shape |
 | Upstream | [vercel/examples `storage/blob-starter`](https://github.com/vercel/examples/tree/main/storage/blob-starter) |
 | Changes | The store (Vercel Blob → R2), the upload path (client token → upload route), the Workers build, tests, the R2 root, the deploy contract; page copy says R2 |
-| Decisions locked | (1) The upload goes through the Worker (one route, bounded at 50MB), not a presigned R2 URL: it keeps the template's server-side checks where they were. (2) Delivery stays a private route (`/api/blob?pathname=`), as upstream. (3) `wrangler.jsonc` rendered per environment; never committed. |
+| Decisions locked | (1) The upload goes through the Worker (one route, bounded at 50MB), not a presigned R2 URL: it keeps the template's server-side checks where they were. (2) Delivery stays a private route (`/api/blob?pathname=`), as upstream. (3) `wrangler.jsonc` rendered per environment — and, since BL4, committed as the fixture render, because the deploy lane checks it exists before the build (risk BL-E). (4) BL4: one landing — the plan, not a landing boundary, orders the bucket before the Worker; the bucket's apply has a token of its own (`r2-data`), because the deploy token cannot touch R2. |
 | Gate | BL1 is the first user-visible rung. BL2 applies only with a linked workspace; verified by `terraform validate`. |
 | Shipped as | `main` after [#4](https://github.com/sourceplane/blob-starter/pull/4); verified locally under `wrangler dev` with a local bucket |
 
@@ -33,3 +33,4 @@ The port keeps the template's page, uploader, progress bar, toasts and styles. I
 | BL1 — uploads on R2 | `apps/web`, the rendered wrangler config, `tests/web` | upload + delivery work under `wrangler dev`; Checks green |
 | BL2 — the R2 bucket from Terraform | `infra/terraform/cloudflare-r2` | the root validates; the wiring key matches the template |
 | BL3 — ready to instantiate | README, as-built status | a reader can run, test, preview and deploy it |
+| BL4 — a baseline, in one landing | card, build document, rename, bootstrap tooling, tests | a new product goes from nothing to live in one landing, the R2 bucket applied before the Worker; Baseline CI green |

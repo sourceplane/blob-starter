@@ -3,20 +3,21 @@ import Link from 'next/link'
 import ExpandingArrow from '@/components/expanding-arrow'
 import Uploader from '@/components/uploader'
 import { Toaster } from '@/components/toaster'
+import { SITE_NAME, SOURCE_URL } from './site'
 
 export default function Home() {
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center">
       <Toaster />
       <Link
-        href="https://github.com/sourceplane/blob-starter"
+        href={SOURCE_URL}
         className="group mt-20 sm:mt-0 rounded-full flex space-x-1 bg-white/30 shadow-sm ring-1 ring-gray-900/5 text-gray-600 text-sm font-medium px-10 py-2 hover:shadow-lg active:shadow-sm transition-all"
       >
         <p>Deploy your own to Cloudflare</p>
         <ExpandingArrow />
       </Link>
       <h1 className="pt-4 pb-8 bg-gradient-to-br from-black via-[#171717] to-[#575757] bg-clip-text text-center text-4xl font-medium tracking-tight text-transparent md:text-7xl">
-        R2 on Cloudflare
+        {SITE_NAME}
       </h1>
       <div className="bg-white/30 p-12 shadow-xl ring-1 ring-gray-900/5 rounded-lg backdrop-blur-lg max-w-xl mx-auto w-full">
         <Uploader />
@@ -48,7 +49,7 @@ export default function Home() {
           />
         </Link>
         <Link
-          href="https://github.com/vercel/examples/tree/main/storage/blob-starter"
+          href={SOURCE_URL}
           className="flex items-center space-x-2"
         >
           <Image

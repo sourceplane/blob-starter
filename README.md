@@ -5,23 +5,70 @@ Vercel's [Blob Next.js Starter](https://github.com/vercel/examples/tree/main/sto
 delivery route — running on **Cloudflare Workers + Static Assets** through
 [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), with the
 files in a **Cloudflare R2** bucket provisioned by Terraform through
-[Orun](https://github.com/sourceplane/orun), inside the repository
-conventions of the [Cirrus baseline](https://github.com/sourceplane/cirrus-baseline).
+[Orun](https://github.com/sourceplane/orun), and packaged as an **Orun
+baseline**: one command takes a new product from nothing to live on stage
+and prod, in its own repository, under its own name — in ONE landing.
 
 The page and the uploader are the template's; the store is R2 and the
-upload route is its front door. See
+upload route is its front door. What the baseline adds is everything needed
+to make a copy of it somebody else's, built the way
+[cirrus-baseline](https://github.com/sourceplane/cirrus-baseline) is since
+its one-landing bootstrap. See
 [`specs/epics/blob-starter`](specs/epics/blob-starter/README.md) for the
 design, the milestones and the as-built status.
 
-## What is here
+## Instantiating a product
+
+```bash
+git clone --depth 1 --branch <baseline-tag> https://github.com/sourceplane/blob-starter
+cd blob-starter
+orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-uploads --run-hooks --resume \
+  --set reponame=acme-uploads --set productname="Acme Uploads" --set productdomain=acme.dev \
+  --set githuborg=acme-inc --set subdomain=<workers-dev-subdomain>
+```
+
+Or, once the platform's registry lists it, from the Orun console (Baselines →
+`blob-starter` → Build). Two phases: **`01-product`** creates the
+repository and lands the whole product as ONE pull request — intent, CI,
+tooling, the R2 root, the uploader and its tests — and one convergence
+applies the R2 bucket on stage and prod and then deploys the uploader bound
+to it; **`02-docs`** records the live deployment from probed facts.
+**[BOOTSTRAP.md](BOOTSTRAP.md)** is the operator guide;
+[docs/phases/](docs/phases/README.md) has a page per phase.
+
+The only connection a build needs is Cloudflare (with R2 enabled on the
+account). Uploads work from the first deploy: the Worker reaches its bucket
+through its R2 binding, so there is no storage token to paste — Vercel
+Blob's `BLOB_READ_WRITE_TOKEN` has no counterpart here.
+
+The new repository receives the **product only** — the app, its R2 root, its
+tests, its CI, its tooling, a README of its own and its operating contract —
+renamed throughout to the product's name, repository, Cloudflare Worker and
+bucket names. None of this repository's machinery ships.
+
+| What makes it a baseline | Where |
+|---|---|
+| The console card (inputs, secrets, programme) | `blueprint.yaml` |
+| The build document (modules, phases, hooks) | `repo-blueprint.yaml` |
+| This tree's identity, and the bootstrap's task contracts | `.baseline/` |
+| The rename engine | `tooling/rebrand/rebrand.mjs` |
+| The bootstrap's helpers (deferrals, redeploy marker, work-tree strip) | `tooling/bootstrap/` |
+| The deployment-record renderer | `hooks/render-deployment-docs.sh` |
+| The product's README and context pack | `.baseline/product/README.md`, `ai/context/` |
+| The baseline's tests: contract, wiring, leak, offline bootstrap, end to end | `testing/`, `.github/workflows/baseline.yml` |
+| Cutting a `baseline-vN` tag | `.github/workflows/tag.yml` |
+
+## What is here (the product)
 
 | Surface | Where |
 |---|---|
 | The page and the uploader | `apps/web/app/page.tsx`, `apps/web/components/uploader.tsx` |
+| The site's name and source link | `apps/web/app/site.ts` |
 | Upload (PUT, image/* ≤ 50MB, random suffix) and delivery (GET, private) | `apps/web/app/api/upload/route.ts`, `apps/web/app/api/blob/route.ts` |
 | The two halves of what `@vercel/blob` did | `apps/web/lib/blob/client.ts`, `apps/web/lib/blob/server.ts` |
-| Workers build, bindings and deploy contract | `apps/web/next.config.mjs`, `open-next.config.ts`, `wrangler.template.jsonc` + `wiring.fixture.json`, `component.yaml` |
+| Workers build, bindings and deploy contract | `apps/web/next.config.mjs`, `open-next.config.ts`, `wrangler.template.jsonc` + `wiring.fixture.json` (→ the committed `wrangler.jsonc`), `component.yaml` |
 | The R2 bucket (stage, prod) | `infra/terraform/cloudflare-r2` |
+| The wrangler renderer | `tooling/wire` |
 | Tests | `tests/web` (vitest, both routes against an in-memory bucket) |
 
 ## Getting started
@@ -48,17 +95,35 @@ pnpm --filter @app/web preview    # wrangler dev over the built Worker, same loc
 | Vercel Blob (`BLOB_READ_WRITE_TOKEN`) | R2 bucket bound as `BLOB`; the binding is the credential |
 | `upload()` client token handshake + direct upload | `PUT /api/upload?pathname=` through the Worker, with progress; same checks, same result shape |
 | `GET /api/blob` private delivery | Same route, streaming from R2 |
-| Deploy on push | Orun deploys `blob-starter-web-{stage,prod}` on merge to `main` (`apps/web/component.yaml`) |
+| A store created in the dashboard | `infra/terraform/cloudflare-r2`, applied by Orun before the Worker deploys |
+| Deploy on push | Orun applies the bucket and deploys `<repo>-web-{stage,prod}` on merge to `main` (`apps/web/component.yaml`) |
+| "Deploy with Vercel" (clone the template) | `orun new --blueprint repo-blueprint.yaml` — a new repository, branded, deployed |
 
 Both routes carry the template's ⚠️ "add your own authentication" notes:
 nothing ships auth.
 
-## Deploying
+## How the bucket name reaches the Worker
 
-`.github/workflows/checks.yml` runs install, wire, typecheck, lint, test and
-build on every push and pull request. `ci.yml` is the Orun pipeline: set
-`execution.state.workspace` in `intent.yaml` to this product's workspace
-(`orun cloud link`), connect a Cloudflare account to it, and set the
-`ORUN_CI` repository variable to `true`. A merge to `main` then applies the
-R2 root, renders the Worker's config with the real bucket name, and deploys
-to `stage`, then `prod`.
+```
+infra/terraform/cloudflare-r2 ──apply──► orun secret WIRING_CLOUDFLARE_R2 (stage, prod)
+   (CLOUDFLARE_R2_TOKEN, r2-data)              │   (the landing's await checks it exists)
+                                               ▼
+apps/web  dependsOn cloudflare-r2 (enforced on main) · secretEnv WIRING_CLOUDFLARE_R2_<ENV>
+  build:  tooling/wire/live.mjs → wrangler.jsonc with the environment's bucket name
+          (dev, verify-only, renders the fixture) → next build → opennextjs-cloudflare
+  deploy: CLOUDFLARE_API_TOKEN (workers-deploy) — the running Worker holds no storage key
+```
+
+`wrangler.jsonc` is committed as the fixture render of
+`wrangler.template.jsonc`, because the deploy lane's `verify-app-structure`
+step checks the config exists before it builds; Checks fails if the two
+disagree.
+
+## CI
+
+| Workflow | What it runs | Ships to a product |
+|---|---|---|
+| `checks.yml` | install, wire fixtures (and the committed config is their render), typecheck, lint, test, build — every PR (not pushes: on main, `ci.yml` must be the only run a commit has, because the bootstrap's convergence watch takes the newest one) | yes |
+| `ci.yml` | the Orun pipeline: `orun plan --changed`, then one job per lane; applies the R2 bucket, then deploys stage → prod on merge. It plans nothing while `intent.yaml` names the placeholder workspace `ws_CHANGE_ME`, as this repository does | yes |
+| `baseline.yml` | the baseline's own tiers: contract tests, the wiring path, the blueprint read by the pinned orun, the leak gate, the offline bootstrap with the product's own plan, the product built in the job tree, dry-deployed and served | no |
+| `tag.yml` | cuts a `baseline-vN` tag (manual) | no |

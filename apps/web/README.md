@@ -1,56 +1,36 @@
----
-name: Vercel Blob Next.js Starter
-slug: blob-starter
-description: Simple Next.js template that uses Vercel Blob for image uploads
-framework: Next.js
-useCase: Starter
-css: Tailwind
-database: Vercel Blob
-deployUrl: https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fstorage%2Fblob-starter&project-name=blob-starter&repository-name=blob-starter&demo-title=Vercel%20Blob%20Next.js%20Starter&demo-description=Simple%20Next.js%20template%20that%20uses%20Vercel%20Blob%20for%20image%20uploads&demo-url=https%3A%2F%2Fblob-starter.vercel.app%2F&demo-image=https%3A%2F%2Fblob-starter.vercel.app%2Fopengraph-image.png&stores=%5B%7B"type"%3A"blob"%7D%5D
-demoUrl: https://blob-starter.vercel.app/
-relatedTemplates:
-  - kv-redis-starter
-  - postgres-starter
----
+# apps/web — the uploader and its two routes
 
-# Vercel Blob Next.js Starter
+An image uploader with drag-and-drop, a preview, a progress bar and a private
+delivery route, from Vercel's Blob Next.js Starter
+([vercel/examples](https://github.com/vercel/examples/tree/main/storage), MIT),
+running on Cloudflare Workers + Static Assets with the files in a
+**Cloudflare R2** bucket instead of Vercel Blob:
 
-A Next.js template that uses [Vercel Blob](https://vercel.com/blob) for image uploads and storage.
-
-## Demo
-
-https://blob-starter.vercel.app
-
-## How to Use
-
-You can choose from one of the following two methods to use this repository:
-
-### One-Click Deploy
-
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=vercel-examples):
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fstorage%2Fblob-starter&project-name=blob-starter&repository-name=blob-starter&demo-title=Vercel%20Blob%20Next.js%20Starter&demo-description=Simple%20Next.js%20template%20that%20uses%20Vercel%20Blob%20for%20image%20uploads&demo-url=https%3A%2F%2Fblob-starter.vercel.app%2F&demo-image=https%3A%2F%2Fblob-starter.vercel.app%2Fopengraph-image.png&stores=%5B%7B"type"%3A"blob"%7D%5D)
-
-### Clone and Deploy
-
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [pnpm](https://pnpm.io/installation) to bootstrap the example:
+- `app/page.tsx` — the page around `<Uploader />`
+- `components/uploader.tsx` — pick or drop an image (image/* only, 50MB
+  max), preview, upload with progress, a toast linking the stored file
+- `app/api/upload/route.ts` — `PUT ?pathname=`: the same checks again on the
+  server, then `BLOB.put` under the name plus a random suffix; answers
+  `{ pathname, contentType, size }`
+- `app/api/blob/route.ts` — `GET ?pathname=`: streams the object with its
+  content type, or the route's own `Not found` 404
+- `lib/blob/client.ts`, `lib/blob/server.ts` — the two halves of what
+  `@vercel/blob` did
+- `app/site.ts` — the site's name and the repository its links point at
 
 ```bash
-pnpm create next-app --example https://github.com/vercel/examples/tree/main/storage/blob-starter
+pnpm dev        # next dev on http://localhost:3000, a local R2 bucket through wrangler's platform proxy
+pnpm build      # next build + opennextjs-cloudflare build → .open-next/
+pnpm preview    # wrangler dev over the built Worker, the same local bucket
 ```
 
-Once that's done, copy the .env.example file in this directory to .env.local (which will be ignored by Git):
+The bucket needs no key: the Worker binds it as `BLOB`. Its name is not
+hand-written either. `wrangler.template.jsonc` names it as a wiring token;
+`wrangler.jsonc` is that template rendered from `wiring.fixture.json`
+(placeholder names, for local work and verification), and every deploy
+renders it again from the name the `cloudflare-r2` Terraform root published
+for the environment (`component.yaml`'s `buildCommand`).
 
-```bash
-cp .env.example .env.local
-```
-
-Then open `.env.local` and set the environment variables to match the ones in your Vercel Storage Dashboard.
-
-Next, run Next.js in development mode:
-
-```bash
-pnpm dev
-```
-
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=vercel-examples) ([Documentation](https://nextjs.org/docs/deployment)).
+⚠️ Both routes accept anonymous requests, as the template's do; each says
+where to add your own authentication. The file passes through the Worker,
+buffered, which the 50MB ceiling keeps inside its limits.
