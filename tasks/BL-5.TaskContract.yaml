@@ -1,0 +1,37 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: BL-5
+  title: "A baseline, in one landing"
+spec:
+  goal: The repository is an Orun baseline — a card and a build document that take a new product from nothing to live on stage and prod in ONE landing, the R2 bucket applied before the Worker that binds it with a token minted for R2 alone, uploads working on a fresh build with nothing but the Cloudflare connection, branded as its own, with gates that prove it offline
+  affects:
+    - blueprint.yaml
+    - repo-blueprint.yaml
+    - BOOTSTRAP.md
+    - README.md
+    - .baseline/**
+    - tooling/rebrand/**
+    - tooling/bootstrap/**
+    - tooling/wire/**
+    - hooks/**
+    - testing/**
+    - docs/phases/**
+    - ai/context/**
+    - .github/workflows/**
+    - .gitignore
+    - intent.yaml
+    - packages/.gitkeep
+    - apps/web/**
+    - tests/web/**
+    - infra/terraform/cloudflare-r2/**
+    - specs/**
+    - tasks/**
+  doneWhen:
+    - orun (the bootstrap floor, the lane pin and the current CLI) reads repo-blueprint.yaml, and the card agrees with it — the r2-data key included
+    - the product's own push-to-main plan applies cloudflare-r2 before it deploys web, on stage and prod, and a pull request waits on nothing
+    - the R2 root authenticates with CLOUDFLARE_R2_TOKEN (r2-data), the Worker's deploy with CLOUDFLARE_API_TOKEN (workers-deploy)
+    - the leak gate, the wiring contract, the offline bootstrap and the end-to-end tier (an upload stored and streamed back by the built Worker) are green in Baseline CI
+    - the as-built status records the departures and what is not yet proven live
+  gates:
+    - checks

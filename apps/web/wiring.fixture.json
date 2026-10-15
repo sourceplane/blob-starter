@@ -1,4 +1,5 @@
 {
+  "cloudflare-r2/dev": { "r2_bucket_name": "dev-blob-starter-dev" },
   "cloudflare-r2/stage": { "r2_bucket_name": "stg-blob-starter-stage" },
   "cloudflare-r2/prod": { "r2_bucket_name": "prod-blob-starter-prod" }
 }
