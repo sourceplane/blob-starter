@@ -25,6 +25,10 @@ auth.
 "Blob on Vercel", the Vercel Blob link and the deploy button point at R2
 and this repository; the layout title reads "R2 Blob Starter".
 
+(Note, BL5: the title has been `SITE_NAME` since BL4, and the footer's
+Vercel logo still links vercel.com, as upstream's does — it was not among the
+links this risk changed.)
+
 ## BL-E — The deploy lane checked for a config only the build makes (RESOLVED in BL4)
 
 stack-tectonic's `cloudflare-workers-assets-turbo` runs `verify-app-structure`
@@ -104,3 +108,23 @@ Attaching a domain to a Worker needs zone permissions the brokered
 `workers-deploy` token does not carry, and `dns-edit` needs zone ids a build
 does not have. The product's README says how to attach one; nothing in the
 repository changes, because the page takes its origin from the request.
+
+## BL-L — SVG uploads were a stored XSS on the app's origin (RESOLVED in BL5)
+
+The upload route accepted the template's `image/*`, and `image/*` admits
+`image/svg+xml`. An SVG is a document that can carry script, and `GET
+/api/blob` served it from the app's own origin with its stored content type
+and no policy — so anyone who opened its URL (the uploader's "View file"
+toast links it) ran the uploader's script as the app. Uploads are anonymous
+(BL-C), so anyone could plant one. Fix: an allow-list of raster types —
+`image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/avif` — compared
+on the media type without parameters, case-insensitive
+(`apps/web/lib/blob/content-types.ts`), which the route checks and the
+uploader uses for its file input's `accept` and its own check; and the
+delivery route answers with `Content-Security-Policy: default-src 'none';
+sandbox` beside `nosniff`, so an object already in a bucket cannot run
+script either. `tests/web/src/blob.test.ts` refuses an SVG (400, nothing
+stored), accepts each raster type, and reads the policy on a served object
+(an SVG stored before the fix included); `testing/e2e.test.sh` checks the
+same against the built Worker. A product built from `baseline-v1` carries
+the old check until it takes the same change.

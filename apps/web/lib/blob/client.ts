@@ -4,6 +4,10 @@
 // the route; here the route is the store's front door, so no token round
 // trip and no size the Worker cannot see.
 
+// The types the route accepts, for the file input and the uploader's own
+// check before it sends anything: raster images only, no SVG.
+export { ALLOWED_CONTENT_TYPES, NOT_ALLOWED_MESSAGE, isAllowedContentType } from './content-types'
+
 export interface UploadOptions {
   access?: 'private' | 'public'
   handleUploadUrl: string

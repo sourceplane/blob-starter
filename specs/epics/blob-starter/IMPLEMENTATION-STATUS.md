@@ -9,7 +9,8 @@ the code departed from `design.md` or from the upstream template.
 | BL1 — uploads on R2 | ✅ Shipped | [#2](https://github.com/sourceplane/blob-starter/pull/2) |
 | BL2 — the R2 bucket from Terraform | ✅ Shipped (validated; apply gated on a linked workspace) | [#3](https://github.com/sourceplane/blob-starter/pull/3) |
 | BL3 — ready to instantiate | ✅ Shipped | [#4](https://github.com/sourceplane/blob-starter/pull/4) |
-| BL4 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk BL-G) | this PR (BL-5), to be tagged `baseline-v1` |
+| BL4 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk BL-G) | [#5](https://github.com/sourceplane/blob-starter/pull/5) (BL-5), tagged `baseline-v1` |
+| BL5 — the cirrus standard, SVG uploads closed | ✅ Shipped | BL-6 — on `main` after `baseline-v1`, not yet tagged |
 
 ## Departures from the upstream template
 
@@ -18,16 +19,19 @@ the code departed from `design.md` or from the upstream template.
 `upload(pathname, file, { handleUploadUrl, onUploadProgress })` keeps its
 signature; it PUTs the file to the route over XHR (progress events) instead
 of the token handshake + direct upload. `components/uploader.tsx` changes
-its import line only.
+its import line only — until BL5, which gives its file input and its check
+the route's raster-only list (below).
 
 ### `app/api/upload/route.ts` is a PUT that stores, not a POST that mints a token
 
 Same checks (image/*, 50MB, random suffix), `BLOB.put` instead of
-`handleUpload`, the completion log inline.
+`handleUpload`, the completion log inline. Since BL5 "image/*" is raster
+images only — see the cirrus standard (BL5) below.
 
 ### `app/api/blob/route.ts` reads R2
 
-`BLOB.get(pathname)` streamed with content type, length, ETag and `nosniff`.
+`BLOB.get(pathname)` streamed with content type, length, ETag and `nosniff`
+— and, since BL5, `Content-Security-Policy: default-src 'none'; sandbox`.
 
 ### `next.config.mjs` (ESM) with `initOpenNextCloudflareForDev()`, no Blob image domain
 
@@ -35,7 +39,8 @@ Same checks (image/*, 50MB, random suffix), `BLOB.put` instead of
 
 "Blob on Vercel" → "R2 on Cloudflare"; the Vercel Blob link → Cloudflare
 R2 docs; the deploy button → this repository; the layout title → "R2 Blob
-Starter".
+Starter". Not changed: the footer's Vercel logo
+(`apps/web/public/vercel.svg`) still links vercel.com, as upstream's does.
 
 ### eslint-config-next 16 flat config, Next 16.3.8
 
@@ -85,6 +90,51 @@ Uploads needed no change to work on a fresh build: BL1 had already replaced
 Vercel Blob's token (`BLOB_READ_WRITE_TOKEN`) with the Worker's R2 binding,
 so a product built with nothing but the Cloudflare connection stores and
 serves files from its first deploy. Nothing third-party remains.
+
+## The cirrus standard, SVG uploads closed (BL5)
+
+One fix to the app, and the baseline brought to cirrus-baseline's standard
+around it:
+
+| What | Before | After | Why |
+|---|---|---|---|
+| what an upload may be | `ALLOWED_CONTENT_TYPES = ['image/*']`, a prefix match — `image/svg+xml` passed | `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/avif`, matched on the media type without parameters, case-insensitive, in `apps/web/lib/blob/content-types.ts`; `server.ts` re-exports it, the route refuses the rest with "We only accept PNG, JPEG, GIF, WebP and AVIF images" | an SVG is a document that can carry script, and the delivery route served it from the app's origin: a stored XSS, with anonymous uploads (risk BL-L) |
+| the delivery route's response | content type, length, ETag, `nosniff` | plus `Content-Security-Policy: default-src 'none'; sandbox` | whatever a bucket already holds cannot run script on the app's origin |
+| the delivery route's comment | "streams the object after authenticating the request" | says the route does not authenticate, as the upload route's does | it never did: nothing ships auth (BL-C) |
+| the uploader | `accept="image/*"`, `file.type.split('/')[0] === 'image'` | `accept` and the check from the same list (`lib/blob/client.ts` re-exports it) | the browser refuses what the route would |
+| tests | — | `tests/web`: an SVG refused (400, nothing stored), each raster type stored, the policy on a served object; `testing/e2e.test.sh`: the uploader's `accept`, an SVG refused and the policy, on the built Worker | — |
+| orun pin | `kiox.yaml` (v2.15.0) + `kiox.lock`, shipped to every product | gone; orun is pinned where it runs, the `orun-action` `version:` in each workflow | nothing ran the kiox pin, and it disagreed with the lanes (v2.78.4) |
+| `root-kiox`, `root-kiox-lock` modules | in `01-product` | removed (`testing/phases.test.sh` and the rebrand's skip list follow) | a product is placed with 81 files: 73 − 2 kiox + 9 docs pages + `content-types.ts` |
+| component docs | none | `apps/web/docs/`, `tests/web/docs/`, `infra/terraform/cloudflare-r2/docs/` — `overview.md`, `architecture.md`, `runbook.md` | cirrus-baseline documents every component; the workspace Docs library renders `docs/` beside each `component.yaml` |
+| how the docs stay true | — | `tooling/catalog/gen-component-docs.py` derives them from the manifest, the Worker config, Terraform and package scripts; Baseline CI runs it with `--check` | a hand-written copy of a manifest drifts silently |
+| context pack | `operations.md`, `deployment.md` | plus `current.md`, `decisions.md`, `open-risks.md` | cirrus-baseline's shape; the three new pages are this repository's own and no module places them (the leak gate still allows exactly two) |
+| status | BL4 "to be tagged" | BL4 shipped and tagged `baseline-v1`; the page-copy note names the Vercel logo it kept | the tag existed; the documents had not caught up |
+
+## Verified (BL5)
+
+- `testing/{manifest,phases,coverage,rebrand,retouch,bootstrap-defer,wire}.test.sh`
+  green; `gen-component-docs.py --check` green (3 components, 9 pages).
+- `orun new --status` (v2.58.11, the bootstrap floor): `01-product` 81 files,
+  `02-docs` hook-only.
+- `testing/leak.test.sh` (v2.58.11): 81 files derived (73 − 2 kiox + 9 docs
+  pages + `content-types.ts`); ai/context still exactly the two declared
+  pages; 74 shipped sources name no factory path.
+- `testing/placement.test.sh` (v2.78.4, as Baseline CI runs it): 81 files
+  placed, both landings, branded, re-tenanted; the product's own plan applies
+  `cloudflare-r2` (with `CLOUDFLARE_R2_TOKEN`) at level 0 and deploys `web`
+  at level 1 on stage and prod; a pull request waits on nothing; the 02-docs
+  merge plans 0 jobs.
+- `pnpm install --frozen-lockfile`, `wire:fixture` (committed render
+  unchanged), `typecheck`, `lint` (the one upstream unused-variable
+  warning), `test` (16 tests, was 11), `build` green.
+- `testing/e2e.test.sh` (v2.78.4): the 01-product landing passes the Checks
+  sequence; the stage lane's four steps pass in the staged job tree, `BLOB`
+  bound to the stage document's bucket; under `wrangler dev` the component's
+  smoke passes, the page offers the five raster types, one PNG uploaded
+  twice is stored under two suffixed names and streamed back byte for byte
+  with the sandboxing CSP and `nosniff`, and a PDF, an SVG, a missing name
+  and an unknown object are refused.
+- `orun task check BL-6` complete.
 
 ## Verified (BL4)
 

@@ -64,8 +64,8 @@ bucket names. None of this repository's machinery ships.
 |---|---|
 | The page and the uploader | `apps/web/app/page.tsx`, `apps/web/components/uploader.tsx` |
 | The site's name and source link | `apps/web/app/site.ts` |
-| Upload (PUT, image/* ≤ 50MB, random suffix) and delivery (GET, private) | `apps/web/app/api/upload/route.ts`, `apps/web/app/api/blob/route.ts` |
-| The two halves of what `@vercel/blob` did | `apps/web/lib/blob/client.ts`, `apps/web/lib/blob/server.ts` |
+| Upload (PUT, PNG/JPEG/GIF/WebP/AVIF ≤ 50MB — no SVG — random suffix) and delivery (GET, private, sandboxed) | `apps/web/app/api/upload/route.ts`, `apps/web/app/api/blob/route.ts` |
+| The two halves of what `@vercel/blob` did, and the upload types they share | `apps/web/lib/blob/client.ts`, `apps/web/lib/blob/server.ts`, `apps/web/lib/blob/content-types.ts` |
 | Workers build, bindings and deploy contract | `apps/web/next.config.mjs`, `open-next.config.ts`, `wrangler.template.jsonc` + `wiring.fixture.json` (→ the committed `wrangler.jsonc`), `component.yaml` |
 | The R2 bucket (stage, prod) | `infra/terraform/cloudflare-r2` |
 | The wrangler renderer | `tooling/wire` |
@@ -93,8 +93,8 @@ pnpm --filter @app/web preview    # wrangler dev over the built Worker, same loc
 |---|---|
 | Next.js hosting | One Cloudflare Worker (`.open-next/worker.js`) + Static Assets |
 | Vercel Blob (`BLOB_READ_WRITE_TOKEN`) | R2 bucket bound as `BLOB`; the binding is the credential |
-| `upload()` client token handshake + direct upload | `PUT /api/upload?pathname=` through the Worker, with progress; same checks, same result shape |
-| `GET /api/blob` private delivery | Same route, streaming from R2 |
+| `upload()` client token handshake + direct upload | `PUT /api/upload?pathname=` through the Worker, with progress; the same checks, with images narrowed to raster formats (an SVG can carry script); same result shape |
+| `GET /api/blob` private delivery | Same route, streaming from R2, under `nosniff` and a CSP that sandboxes what it serves |
 | A store created in the dashboard | `infra/terraform/cloudflare-r2`, applied by Orun before the Worker deploys |
 | Deploy on push | Orun applies the bucket and deploys `<repo>-web-{stage,prod}` on merge to `main` (`apps/web/component.yaml`) |
 | "Deploy with Vercel" (clone the template) | `orun new --blueprint repo-blueprint.yaml` — a new repository, branded, deployed |

@@ -29,13 +29,39 @@ beforeEach(() => {
   store.get.mockClear();
 });
 
+// The raster formats an upload may be. SVG is an image too, but a document
+// that can run script — served from the app's origin, a stored XSS.
+const RASTER = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"];
+
 describe("lib/blob/server", () => {
-  it("accepts images only", async () => {
-    const { isAllowedContentType } = await import("@/lib/blob/server");
-    expect(isAllowedContentType("image/png")).toBe(true);
-    expect(isAllowedContentType("image/webp")).toBe(true);
+  it("accepts raster images only", async () => {
+    const { ALLOWED_CONTENT_TYPES, isAllowedContentType } = await import("@/lib/blob/server");
+    expect([...ALLOWED_CONTENT_TYPES]).toEqual(RASTER);
+    for (const type of RASTER) expect(isAllowedContentType(type)).toBe(true);
     expect(isAllowedContentType("application/pdf")).toBe(false);
     expect(isAllowedContentType(null)).toBe(false);
+    expect(isAllowedContentType("")).toBe(false);
+  });
+
+  it("refuses SVG, a wildcard and look-alikes, whatever the case or parameters", async () => {
+    const { isAllowedContentType } = await import("@/lib/blob/server");
+    expect(isAllowedContentType("image/svg+xml")).toBe(false);
+    expect(isAllowedContentType("IMAGE/SVG+XML")).toBe(false);
+    expect(isAllowedContentType("image/svg+xml; charset=utf-8")).toBe(false);
+    expect(isAllowedContentType("image/*")).toBe(false);
+    expect(isAllowedContentType("image/pngx")).toBe(false);
+    expect(isAllowedContentType("text/html")).toBe(false);
+    expect(isAllowedContentType("image/png, image/svg+xml")).toBe(false);
+    // …while the media type alone decides: parameters and case do not.
+    expect(isAllowedContentType("IMAGE/PNG")).toBe(true);
+    expect(isAllowedContentType("image/jpeg; charset=binary")).toBe(true);
+  });
+
+  it("gives the browser the same list as the route", async () => {
+    const server = await import("@/lib/blob/server");
+    const client = await import("@/lib/blob/client");
+    expect(client.ALLOWED_CONTENT_TYPES).toBe(server.ALLOWED_CONTENT_TYPES);
+    expect(client.isAllowedContentType).toBe(server.isAllowedContentType);
   });
 
   it("adds a random suffix before the extension, like Blob's addRandomSuffix", async () => {
@@ -68,6 +94,31 @@ describe("PUT /api/upload", () => {
     expect(store.put).not.toHaveBeenCalled();
   });
 
+  it("refuses an SVG with 400 and stores nothing", async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.domain)</script></svg>';
+    for (const type of ["image/svg+xml", "image/SVG+xml; charset=utf-8"]) {
+      const res = await put({ pathname: "logo.svg", type, body: svg });
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { error: string }).error).toBe(
+        "We only accept PNG, JPEG, GIF, WebP and AVIF images",
+      );
+    }
+    expect(store.put).not.toHaveBeenCalled();
+    expect(objects.size).toBe(0);
+  });
+
+  it("accepts each raster type", async () => {
+    for (const type of RASTER) {
+      const ext = type.split("/")[1];
+      const res = await put({ pathname: `photo.${ext}`, type, body: new Uint8Array([1, 2, 3]) });
+      expect(res.status, type).toBe(200);
+      const json = (await res.json()) as { pathname: string; contentType: string };
+      expect(json.contentType).toBe(type);
+      expect(objects.get(json.pathname)?.contentType).toBe(type);
+    }
+    expect(store.put).toHaveBeenCalledTimes(RASTER.length);
+  });
+
   it("stores an image under a suffixed pathname and returns it", async () => {
     const res = await put({ pathname: "photo.png", type: "image/png", body: new Uint8Array([1, 2, 3]) });
     expect(res.status).toBe(200);
@@ -93,6 +144,19 @@ describe("GET /api/blob", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([9, 8, 7]));
+  });
+
+  it("serves an SVG already in the bucket sandboxed, so its script cannot run", async () => {
+    const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+    objects.set("old-1.svg", { body: svg.buffer as ArrayBuffer, contentType: "image/svg+xml" });
+    const { GET } = await import("@/app/api/blob/route");
+    const res = await GET(new NextRequest("https://app.example.com/api/blob?pathname=old-1.svg"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    const csp = res.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("default-src 'none'");
+    expect(csp.split(";").map((d) => d.trim())).toContain("sandbox");
   });
 });

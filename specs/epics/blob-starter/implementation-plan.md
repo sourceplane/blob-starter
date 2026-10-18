@@ -60,9 +60,41 @@ enforced `dependsOn: cloudflare-r2` on main, `packages/`.
 - the status file records what is proven offline and what only a live
   bootstrap can prove
 
+## BL5 — the cirrus standard, SVG uploads closed (BL-6) ✅
+
+One security fix to the app, and the baseline brought to cirrus-baseline's
+standard around it.
+
+- **SVG uploads closed (risk BL-L).** The upload route and the uploader take
+  raster images only — PNG, JPEG, GIF, WebP, AVIF — from one list
+  (`apps/web/lib/blob/content-types.ts`), matched on the media type without
+  parameters; the delivery route serves every object under
+  `Content-Security-Policy: default-src 'none'; sandbox` beside `nosniff`.
+  Its comment stops claiming it authenticates.
+- **No kiox.** `kiox.yaml`/`kiox.lock` pinned an orun (v2.15.0) that nothing
+  ran: every workflow installs orun itself through `orun-action` with its own
+  `version:`. The files, their two modules and the rebrand's skip entry go.
+- **Component docs.** `tooling/catalog/gen-component-docs.py` writes each
+  component's `docs/overview.md`, `docs/architecture.md` and `docs/runbook.md`
+  from what the component declares, as cirrus-baseline's do; the pages ship
+  with the component. Baseline CI runs it with `--check`.
+- **The context pack.** `ai/context/current.md`, `decisions.md` and
+  `open-risks.md` beside the two pages a product ships with — this
+  repository's own, so no module places them.
+- **Status that agrees with the tags.** BL4 is shipped and tagged.
+
+**Done when**
+- `tests/web` refuses an SVG upload (400), stores each raster type, and finds
+  the policy on a served object; `testing/e2e.test.sh` does the same against
+  the built Worker
+- `git grep -i kiox` finds nothing, and the leak gate and the offline
+  bootstrap pass without the two modules
+- the docs check is green in Baseline CI
+- this file, the status file and `epic.yaml` agree
+
 ## After BL4 (outside this repository)
 
-1. Cut `baseline-v1` with `tag.yml` from the merged `main`.
+1. Cut `baseline-v1` with `tag.yml` from the merged `main` — done: `baseline-v1` is BL4.
 2. Register the row in orun-cloud's `infra/baselines-registry/baselines.yaml`
    (unlisted) with the card vendored at the tag.
 3. Bootstrap one product from the tag against a workspace whose Cloudflare

@@ -23,8 +23,8 @@ and how to operate it is in
 |---|---|
 | The page and the uploader | `apps/web/app/page.tsx`, `apps/web/components/uploader.tsx` |
 | The site's name and source link | `apps/web/app/site.ts` |
-| Upload (PUT, image/* ≤ 50MB, random suffix) and delivery (GET, private) | `apps/web/app/api/upload/route.ts`, `apps/web/app/api/blob/route.ts` |
-| The browser upload helper and the bucket's checks | `apps/web/lib/blob/client.ts`, `apps/web/lib/blob/server.ts` |
+| Upload (PUT, PNG/JPEG/GIF/WebP/AVIF ≤ 50MB — no SVG — random suffix) and delivery (GET, private, sandboxed) | `apps/web/app/api/upload/route.ts`, `apps/web/app/api/blob/route.ts` |
+| The browser upload helper, the bucket's checks, and the upload types they share | `apps/web/lib/blob/client.ts`, `apps/web/lib/blob/server.ts`, `apps/web/lib/blob/content-types.ts` |
 | Workers build, bindings and deploy contract | `apps/web/next.config.mjs`, `open-next.config.ts`, `wrangler.template.jsonc` + `wiring.fixture.json` (→ `wrangler.jsonc`), `component.yaml` |
 | The R2 bucket (stage, prod) | `infra/terraform/cloudflare-r2` |
 | Tests | `tests/web` (vitest: both routes against an in-memory bucket) |
@@ -51,11 +51,13 @@ repository it links to in `apps/web/app/site.ts`.
 ## How uploads work
 
 The browser PUTs the file to `/api/upload?pathname=<name>` with progress;
-the route accepts images only, up to 50MB, stores the file in the bucket
-under the name plus a random suffix, and answers
-`{ pathname, contentType, size }`. `/api/blob?pathname=<stored name>`
-streams it back with its content type. The bucket is private: nothing is
-served from it except through that route.
+the route accepts raster images only — PNG, JPEG, GIF, WebP, AVIF; not SVG,
+which can carry script — up to 50MB, stores the file in the bucket under the
+name plus a random suffix, and answers `{ pathname, contentType, size }`.
+`/api/blob?pathname=<stored name>` streams it back with its content type,
+`nosniff`, and `Content-Security-Policy: default-src 'none'; sandbox`, so
+nothing it serves can run script on the site's origin. The bucket is
+private: nothing is served from it except through that route.
 
 There is no storage key to configure. The Worker binds the bucket as
 `BLOB`, and the binding is the credential. Its name is never hand-written:

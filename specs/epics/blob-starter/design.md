@@ -16,8 +16,8 @@ toast with a "View file" link. `POST /api/upload` runs Blob's
 | Next.js hosting | Cloudflare Workers + Static Assets; the Worker is `@opennextjs/cloudflare`'s output |
 | Vercel Blob store (`BLOB_READ_WRITE_TOKEN`) | R2 bucket bound as `BLOB`; no token, the binding is the credential |
 | `upload()` from `@vercel/blob/client` (token handshake, direct upload, progress) | `lib/blob/client.ts` `upload()`: same signature, `PUT /api/upload?pathname=` over XHR with progress; resolves `{ pathname, contentType, size }` |
-| `handleUpload` in `POST /api/upload` | `PUT /api/upload`: image/* only, 50MB max (header and body), random suffix (`withRandomSuffix`), `BLOB.put` with the content type, the same completion log |
-| `get(pathname, { access: 'private' })` in `GET /api/blob` | `BLOB.get(pathname)` streamed with content type, length, ETag, `nosniff` |
+| `handleUpload` in `POST /api/upload` | `PUT /api/upload`: image/* only — raster types only since BL5 (PNG, JPEG, GIF, WebP, AVIF; risk BL-L) — 50MB max (header and body), random suffix (`withRandomSuffix`), `BLOB.put` with the content type, the same completion log |
+| `get(pathname, { access: 'private' })` in `GET /api/blob` | `BLOB.get(pathname)` streamed with content type, length, ETag, `nosniff` — and, since BL5, `Content-Security-Policy: default-src 'none'; sandbox` |
 | `images.domains` for the Blob host | Not needed: delivery is this app's own route |
 | A store created in the dashboard | `infra/terraform/cloudflare-r2`: one bucket per environment, name published as the `WIRING_CLOUDFLARE_R2` secret |
 | Deploy on push | Orun: `apps/web/component.yaml` renders the config for `$ORUN_ENVIRONMENT`, builds, and deploys `blob-starter-web-{stage,prod}` on merge to `main` once the product is linked — after the bucket's apply (BL4) |
@@ -56,6 +56,7 @@ fixture (BL-F); `wrangler dev` and `next dev` (through
 apps/web                      the template + the Workers build
   lib/blob/client.ts          the browser upload helper (replaces @vercel/blob/client)
   lib/blob/server.ts          the bucket, the checks, the suffix (replaces @vercel/blob)
+  lib/blob/content-types.ts   the raster types an upload may be, shared by both halves (BL5)
   app/api/upload/route.ts     PUT: validate and store
   app/api/blob/route.ts       GET: stream a private object
   app/site.ts                 the site's name and source link (BL4: the rename seam) + the request origin

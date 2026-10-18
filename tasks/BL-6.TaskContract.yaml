@@ -1,0 +1,38 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: BL-6
+  title: "The cirrus standard, SVG uploads closed"
+spec:
+  goal: Uploads cannot plant script on the app's origin — the upload route and the uploader take raster images only and the delivery route serves every object sandboxed — and the baseline meets cirrus-baseline's standard — no kiox pin (orun is pinned where CI runs it), every component documented by generated overview/architecture/runbook pages that CI keeps in step with the manifests, the agent context pack, and status documents that agree with the tags
+  affects:
+    - apps/web/lib/blob/**
+    - apps/web/app/api/**
+    - apps/web/components/uploader.tsx
+    - apps/web/README.md
+    - tests/web/src/**
+    - testing/e2e.test.sh
+    - kiox.yaml
+    - kiox.lock
+    - repo-blueprint.yaml
+    - testing/phases.test.sh
+    - tooling/rebrand/**
+    - tooling/catalog/**
+    - .github/workflows/baseline.yml
+    - apps/web/docs/**
+    - tests/web/docs/**
+    - infra/terraform/cloudflare-r2/docs/**
+    - ai/context/**
+    - README.md
+    - .baseline/product/**
+    - specs/**
+    - tasks/**
+  doneWhen:
+    - an SVG upload is refused (400) and each raster type (PNG, JPEG, GIF, WebP, AVIF) is stored, in tests/web and against the built Worker in testing/e2e.test.sh
+    - "the delivery route answers every object with `Content-Security-Policy: default-src 'none'; sandbox` and `nosniff`"
+    - no file names kiox, and the leak gate and the offline bootstrap place a product without it
+    - every component has docs/overview.md, docs/architecture.md and docs/runbook.md, and `python3 tooling/catalog/gen-component-docs.py --check` is green in Baseline CI
+    - ai/context carries current.md, decisions.md and open-risks.md for this repository (none of them ships)
+    - every milestone's status row agrees with the tags
+  gates:
+    - checks

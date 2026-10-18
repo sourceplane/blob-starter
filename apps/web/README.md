@@ -7,15 +7,19 @@ running on Cloudflare Workers + Static Assets with the files in a
 **Cloudflare R2** bucket instead of Vercel Blob:
 
 - `app/page.tsx` — the page around `<Uploader />`
-- `components/uploader.tsx` — pick or drop an image (image/* only, 50MB
-  max), preview, upload with progress, a toast linking the stored file
+- `components/uploader.tsx` — pick or drop an image (PNG, JPEG, GIF, WebP
+  or AVIF, 50MB max), preview, upload with progress, a toast linking the
+  stored file
 - `app/api/upload/route.ts` — `PUT ?pathname=`: the same checks again on the
   server, then `BLOB.put` under the name plus a random suffix; answers
   `{ pathname, contentType, size }`
 - `app/api/blob/route.ts` — `GET ?pathname=`: streams the object with its
-  content type, or the route's own `Not found` 404
+  content type, `nosniff` and a CSP that sandboxes it, or the route's own
+  `Not found` 404
 - `lib/blob/client.ts`, `lib/blob/server.ts` — the two halves of what
-  `@vercel/blob` did
+  `@vercel/blob` did; `lib/blob/content-types.ts` — the raster types both
+  accept (no SVG: it can carry script, and the route serves from this
+  origin)
 - `app/site.ts` — the site's name and the repository its links point at
 
 ```bash
