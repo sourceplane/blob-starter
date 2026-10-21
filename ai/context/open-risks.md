@@ -13,5 +13,5 @@ Accepted, and worth knowing before you change them: BL-A (the upload is
 buffered through the Worker), BL-C (anonymous uploads, as upstream),
 BL-I (the bootstrap floor plans every edge enforced), BL-J (R2 is
 switched on per account by its owner), BL-K (a custom domain is the owner's
-step). Resolved in BL5: BL-L (SVG uploads), for products built from a later
-tag than `baseline-v1`.
+step). Resolved in BL5: BL-L (SVG uploads), for products built from
+`baseline-v2` on.

@@ -60,7 +60,7 @@ enforced `dependsOn: cloudflare-r2` on main, `packages/`.
 - the status file records what is proven offline and what only a live
   bootstrap can prove
 
-## BL5 — the cirrus standard, SVG uploads closed (BL-6) ✅
+## BL5 — the cirrus standard, SVG uploads closed (BL-6, BL-7) ✅
 
 One security fix to the app, and the baseline brought to cirrus-baseline's
 standard around it.
@@ -82,6 +82,12 @@ standard around it.
   `open-risks.md` beside the two pages a product ships with — this
   repository's own, so no module places them.
 - **Status that agrees with the tags.** BL4 is shipped and tagged.
+- **The subdomain from the Cloudflare connection (BL-7).** The card's
+  `subdomain` input declares `from: connection.cloudflare.workersSubdomain`,
+  as cirrus-baseline since `baseline-v23`: the console fills it from the
+  connection the build is bound to and renders no field; `manifest.test.sh`
+  accepts the source only while the card requires `cloudflare`. A hand-run
+  build still passes `--set subdomain`.
 
 **Done when**
 - `tests/web` refuses an SVG upload (400), stores each raster type, and finds
