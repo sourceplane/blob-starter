@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import {
   MAX_UPLOAD_BYTES,
+  NOT_ALLOWED_MESSAGE,
   bucket,
   isAllowedContentType,
   putBlob,
@@ -8,8 +9,11 @@ import {
 
 // Receives the browser's upload and stores it in R2. This is the Worker's
 // front door for uploads (Blob's `handleUpload` minted a client token for a
-// direct upload instead): the same checks the template declared —
-// image/* only, 50MB max, a random suffix on the name.
+// direct upload instead): the checks the template declared — images only,
+// 50MB max, a random suffix on the name — with "images" narrowed to raster
+// formats (PNG, JPEG, GIF, WebP, AVIF). The template's `image/*` admitted
+// SVG, which the delivery route would serve from this origin as a document
+// that can run script.
 //
 // ⚠️ Authenticate and authorize users before accepting the upload.
 // Otherwise, you're allowing anonymous uploads.
@@ -23,7 +27,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Missing pathname' }, { status: 400 })
   }
   if (!isAllowedContentType(contentType)) {
-    return NextResponse.json({ error: 'We only accept image files' }, { status: 400 })
+    return NextResponse.json({ error: NOT_ALLOWED_MESSAGE }, { status: 400 })
   }
   if (length > MAX_UPLOAD_BYTES) {
     return NextResponse.json({ error: 'File size too big (max 50MB)' }, { status: 400 })

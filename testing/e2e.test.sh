@@ -31,9 +31,10 @@
 #      the upload, which only the Worker answers: an image PUT to
 #      /api/upload is stored in the BLOB bucket under a name with a random
 #      suffix (a different one on every request) and streamed back
-#      byte-for-byte from /api/blob, while a non-image, a missing name and an
-#      unknown object are refused. wrangler dev provides the bucket locally,
-#      with nothing but the build: no storage key, no third-party service.
+#      byte-for-byte from /api/blob under a CSP that sandboxes it, while a
+#      non-image, an SVG, a missing name and an unknown object are refused.
+#      wrangler dev provides the bucket locally, with nothing but the build:
+#      no storage key, no third-party service.
 #
 # What it cannot do is the platform's half: create the repository, mint the
 # brokered Cloudflare tokens, apply the bucket, deploy for real and probe
@@ -237,8 +238,9 @@ if "blob-starter" in page or "R2 on Cloudflare" in page:
 og = re.search(r'<meta property="og:image" content="([^"]+)"', page)
 if not og or not og.group(1).startswith(f"{base}/opengraph-image.png"):
     bad(f"og:image is {og and og.group(1)!r} — not absolute on the origin it was asked on ({base})")
-if "Upload an image" not in page or 'accept="image/*"' not in page:
-    bad("the page does not render the uploader")
+RASTER = "image/png,image/jpeg,image/gif,image/webp,image/avif"
+if "Upload an image" not in page or f'accept="{RASTER}"' not in page:
+    bad(f"the page does not render the uploader, offering {RASTER} (raster images only)")
 
 # THE ROUTES ONLY THE WORKER ANSWERS: an image stored in the BLOB bucket and
 # streamed back. A real 1×1 PNG, so the bytes that come back can be compared.
@@ -270,10 +272,21 @@ for key in stored:
     if h.get("content-type") != "image/png" or h.get("x-content-type-options") != "nosniff" or not h.get("etag"):
         bad(f"GET /api/blob for {key!r} answered content-type {h.get('content-type')!r}, "
             f"nosniff {h.get('x-content-type-options')!r}, etag {h.get('etag')!r}")
-# …and what the routes refuse, as the template's did.
+    # Served from the product's own origin: whatever an object is, it must
+    # not run script there.
+    if h.get("content-security-policy") != "default-src 'none'; sandbox":
+        bad(f"GET /api/blob for {key!r} answered CSP {h.get('content-security-policy')!r}, "
+            f"not \"default-src 'none'; sandbox\"")
+# …and what the routes refuse: the template's refusals, and an SVG — an image
+# the template accepted, and a document whose script would run on this origin.
+refused = "We only accept PNG, JPEG, GIF, WebP and AVIF images"
 s, h, b = upload("notes.pdf", b"%PDF-1.4", "application/pdf")
-if s != 400 or json.loads(b or b"{}").get("error") != "We only accept image files":
-    bad(f"a PDF upload answered {s} {b[:120]!r}, not 400 'We only accept image files'")
+if s != 400 or json.loads(b or b"{}").get("error") != refused:
+    bad(f"a PDF upload answered {s} {b[:120]!r}, not 400 {refused!r}")
+svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.domain)</script></svg>'
+s, h, b = upload("logo.svg", svg, "image/svg+xml")
+if s != 400 or json.loads(b or b"{}").get("error") != refused:
+    bad(f"an SVG upload answered {s} {b[:120]!r}, not 400 {refused!r}")
 s, h, b = upload(None, png, "image/png")
 if s != 400:
     bad(f"an upload with no pathname answered {s}, not 400")
@@ -298,8 +311,8 @@ if problems:
         print(f"  ✕ {p}", file=sys.stderr)
     sys.exit(1)
 print(f"   / (the product's name, links, origin and uploader); one image uploaded twice, stored as")
-print(f"   {stored[0]!r} and {stored[1]!r}, streamed back byte for byte;")
-print(f"   a PDF, a missing name and an unknown object refused; the Open Graph image, the static")
+print(f"   {stored[0]!r} and {stored[1]!r}, streamed back byte for byte, sandboxed;")
+print(f"   a PDF, an SVG, a missing name and an unknown object refused; the Open Graph image, the static")
 print(f"   assets and a 404 — the product's own")
 PY
 

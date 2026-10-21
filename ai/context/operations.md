@@ -18,9 +18,10 @@ component-native desired-state repo.
   publishes a wiring document — `{r2_bucket_name}` — as the Orun secret
   `WIRING_CLOUDFLARE_R2` on that environment.
 - **`apps/web`** — the uploader: Next.js built by `@opennextjs/cloudflare`
-  into one Worker plus Static Assets. `PUT /api/upload?pathname=` accepts an
-  image (≤ 50MB) and stores it in the `BLOB` R2 binding under the name plus
-  a random suffix; `GET /api/blob?pathname=` streams it back. The page
+  into one Worker plus Static Assets. `PUT /api/upload?pathname=` accepts a
+  raster image (PNG, JPEG, GIF, WebP, AVIF; ≤ 50MB) and stores it in the
+  `BLOB` R2 binding under the name plus a random suffix; `GET
+  /api/blob?pathname=` streams it back, sandboxed by its CSP. The page
   renders per request (its metadata takes the request's origin).
 - **`tests/web`** — both routes against an in-memory bucket (vitest),
   verified on the `dev` rung.

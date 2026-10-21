@@ -2,7 +2,12 @@
 
 import { useState, type FormEvent } from 'react'
 import toast from 'react-hot-toast'
-import { upload } from '@/lib/blob/client'
+import {
+  ALLOWED_CONTENT_TYPES,
+  NOT_ALLOWED_MESSAGE,
+  isAllowedContentType,
+  upload,
+} from '@/lib/blob/client'
 import ProgressBar from './progress-bar'
 
 export default function Uploader() {
@@ -76,8 +81,8 @@ export default function Uploader() {
   function handleFileChange(file: File) {
     toast.dismiss()
 
-    if (file.type.split('/')[0] !== 'image') {
-      toast.error('We only accept image files')
+    if (!isAllowedContentType(file.type)) {
+      toast.error(NOT_ALLOWED_MESSAGE)
       return
     }
 
@@ -178,7 +183,7 @@ export default function Uploader() {
             id="image-upload"
             name="image"
             type="file"
-            accept="image/*"
+            accept={ALLOWED_CONTENT_TYPES.join(',')}
             className="sr-only"
             onChange={(event) => {
               const file = event.currentTarget?.files?.[0]

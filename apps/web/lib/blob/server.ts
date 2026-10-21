@@ -5,16 +5,11 @@ import { getCloudflareContext } from '@opennextjs/cloudflare'
 // `addRandomSuffix` did), `get` streams it back.
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024 // 50MB, as the template
-export const ALLOWED_CONTENT_TYPES = ['image/*']
 
-export function isAllowedContentType(contentType: string | null): boolean {
-  if (!contentType) return false
-  return ALLOWED_CONTENT_TYPES.some((allowed) =>
-    allowed.endsWith('/*')
-      ? contentType.startsWith(allowed.slice(0, -1))
-      : contentType === allowed,
-  )
-}
+// Raster images only (PNG, JPEG, GIF, WebP, AVIF). The template allowed
+// `image/*`, which admits `image/svg+xml` — a document that runs script when
+// the delivery route serves it from this origin.
+export { ALLOWED_CONTENT_TYPES, NOT_ALLOWED_MESSAGE, isAllowedContentType } from './content-types'
 
 export function withRandomSuffix(pathname: string, random = crypto.randomUUID()): string {
   const suffix = random.replace(/-/g, '').slice(0, 30)
