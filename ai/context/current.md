@@ -18,13 +18,13 @@ then the Worker deployed), then records what went live (`02-docs`).
 
 | | |
 |---|---|
-| Latest tag | `baseline-v2` (BL5 — the cirrus standard: no kiox, generated component docs, this context pack, and the console card reading `subdomain` from the Cloudflare connection; SVG uploads closed, risk BL-L); `baseline-v1` is BL4 |
+| Latest tag | `baseline-v3` (BL6 — the domain is set later: the console asks for no domain, and a site is born with the placeholder `<reponame>.example.com` for an owner to replace); `baseline-v2` is BL5 (the cirrus standard; SVG uploads closed, risk BL-L), `baseline-v1` BL4 |
 | Proven live | No. Everything short of the platform is proven offline in Baseline CI, an upload round-tripped through the built Worker included; a live bootstrap from a tag is still to come (risk BL-G) |
 
 `baseline-v1` accepts any `image/*` upload, SVG included, and serves it from
 the product's own origin (BL-L). A product built from it needs BL5's change
 to `apps/web/lib/blob`, the delivery route and the uploader, which
-`baseline-v2` carries.
+`baseline-v2` and later carry.
 
 ## Where to read
 
@@ -38,6 +38,6 @@ to `apps/web/lib/blob`, the delivery route and the uploader, which
 
 ## Next
 
-1. Bootstrap one product from `baseline-v2` against a workspace whose
+1. Bootstrap one product from `baseline-v3` against a workspace whose
    Cloudflare account has R2 enabled (BL-J), and record its timings (closes
    BL-G).
