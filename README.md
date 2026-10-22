@@ -23,7 +23,7 @@ design, the milestones and the as-built status.
 git clone --depth 1 --branch <baseline-tag> https://github.com/sourceplane/blob-starter
 cd blob-starter
 orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-uploads --run-hooks --resume \
-  --set reponame=acme-uploads --set productname="Acme Uploads" --set productdomain=acme.dev \
+  --set reponame=acme-uploads --set productname="Acme Uploads" \
   --set githuborg=acme-inc --set subdomain=<workers-dev-subdomain>
 ```
 

@@ -8,15 +8,15 @@ The port keeps the template's page, uploader, progress bar, toasts and styles. I
 
 | Field | Value |
 |-------|-------|
-| Status | ✅ BL0–BL5 shipped (#1–#7; BL4 tagged `baseline-v1`, BL5 — the cirrus standard, SVG uploads closed, BL-6 and BL-7 — tagged `baseline-v2`). R2 apply and live deploy proven only by a live bootstrap (risk BL-G) |
-| Cluster | **BL** (BL0–BL5) |
+| Status | ✅ BL0–BL6 shipped (#1–#8; BL4 tagged `baseline-v1`, BL5 — the cirrus standard, SVG uploads closed, BL-6 and BL-7 — tagged `baseline-v2`, BL6 — the domain is set later, BL-8 — tagged `baseline-v3`). R2 apply and live deploy proven only by a live bootstrap (risk BL-G) |
+| Cluster | **BL** (BL0–BL6) |
 | Owner(s) | `apps/web` (the uploader, the routes, `lib/blob`) · `tests/web` · `infra/terraform/cloudflare-r2` |
 | Builds on | `cirrus-baseline` conventions: the R2 root and the `@@wiring(...)@@` deploy-time render; the `kv-redis-starter` port's binding shape |
 | Upstream | [vercel/examples `storage/blob-starter`](https://github.com/vercel/examples/tree/main/storage/blob-starter) |
 | Changes | The store (Vercel Blob → R2), the upload path (client token → upload route), the Workers build, tests, the R2 root, the deploy contract; page copy says R2; since BL5, raster uploads only and a sandboxed delivery route (risk BL-L) |
 | Decisions locked | (1) The upload goes through the Worker (one route, bounded at 50MB), not a presigned R2 URL: it keeps the template's server-side checks where they were. (2) Delivery stays a private route (`/api/blob?pathname=`), as upstream. (3) `wrangler.jsonc` rendered per environment — and, since BL4, committed as the fixture render, because the deploy lane checks it exists before the build (risk BL-E). (4) BL4: one landing — the plan, not a landing boundary, orders the bucket before the Worker; the bucket's apply has a token of its own (`r2-data`), because the deploy token cannot touch R2. |
 | Gate | BL1 is the first user-visible rung. BL2 applies only with a linked workspace; verified by `terraform validate`. |
-| Shipped as | `baseline-v1` ([#5](https://github.com/sourceplane/blob-starter/pull/5)), `baseline-v2` ([#6](https://github.com/sourceplane/blob-starter/pull/6), [#7](https://github.com/sourceplane/blob-starter/pull/7)); proven offline (Baseline CI: an upload round-tripped through the built Worker under `wrangler dev`), deploy gated until a workspace is linked |
+| Shipped as | `baseline-v3` ([#8](https://github.com/sourceplane/blob-starter/pull/8), BL6: no domain asked), `baseline-v1` ([#5](https://github.com/sourceplane/blob-starter/pull/5)), `baseline-v2` ([#6](https://github.com/sourceplane/blob-starter/pull/6), [#7](https://github.com/sourceplane/blob-starter/pull/7)); proven offline (Baseline CI: an upload round-tripped through the built Worker under `wrangler dev`), deploy gated until a workspace is linked |
 
 ## Read order
 
@@ -35,3 +35,4 @@ The port keeps the template's page, uploader, progress bar, toasts and styles. I
 | BL3 — ready to instantiate | README, as-built status | a reader can run, test, preview and deploy it |
 | BL4 — a baseline, in one landing | card, build document, rename, bootstrap tooling, tests | a new product goes from nothing to live in one landing, the R2 bucket applied before the Worker; Baseline CI green |
 | BL5 — the cirrus standard, SVG uploads closed | raster-only uploads and a sandboxed delivery route; no kiox, generated component docs, the context pack, status that agrees with the tags; the console card reads `subdomain` from the Cloudflare connection | an SVG upload is refused and a served object cannot run script; Baseline CI green with the docs check |
+| BL6 — the domain is set later | the console asks for no domain; an empty `productdomain` brands the placeholder `<reponame>.example.com` for an owner to replace | Baseline CI green on a fixture with no domain |
