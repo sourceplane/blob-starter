@@ -14,24 +14,24 @@ waits.
 
 ## What runs
 
+The run's task set-up — the epic, both milestones, both tasks — runs in the
+background from the start (`background: true`), so every hook up to `task`
+runs beside it; `task` is the first that waits for it.
+
 | hook | what it does |
 |---|---|
-| `task` (pre) | finds the phase's task and yields its key |
 | `retouch` | the redeploy marker on the components `.baseline/tasks/01-product.TaskContract.yaml` names: `cloudflare-r2`, `web`, `web-tests` |
 | `git-init`, `stage`, `rebrand` | the tree becomes a repository, then the product's |
 | `orun-workspace` | intent.yaml's `workspace:` becomes the product's (or `ws_SET_ME`, which fails loudly) |
 | `work-tree` | intent.yaml's `work:` block — this repository's epics and tasks — is removed |
 | `promotion`, `dev-lanes` | prod's promotion gate and dev's push-to-main activation deferred until `02-docs` |
 | `restage`, `rebrand-verify` | the sweep: no identity of this baseline left anywhere |
-| `pnpm-lockfile` | confirms the baseline's complete lockfile against the placed tree |
 | `repo` | `orun.repo/ensure@v1` creates `<githuborg>/<reponame>` (or finds it) |
 | `link` | the repository becomes the workspace's; `orun cloud check` is the gate |
-| `secret-workers-deploy` | `orun.integrations/reconcile@v1` — `CLOUDFLARE_API_TOKEN` from the `workers-deploy` template (Workers Scripts and KV Storage write): the Worker's deploy. It cannot touch R2 |
-| `secret-r2-data` | `CLOUDFLARE_R2_TOKEN` from the `r2-data` template (Workers R2 Storage Write): the R2 root's apply, which binds it as its `CLOUDFLARE_API_TOKEN` |
-| `secret-account-id` | `CLOUDFLARE_ACCOUNT_ID`, the connection fact both bind |
-| `land` | one PR bound to the task, merged once its checks (Checks, and `plan`) are green |
-| `converge` (await) | `orun.run/watch@v1` on the merge commit's run; resumes it up to three times |
-| `wiring` (await) | `orun.secrets/exists@v1` — `WIRING_CLOUDFLARE_R2` exists on stage and prod |
+| `secrets` | `orun.integrations/reconcile@v1`, the three keys in one hook, created side by side: `CLOUDFLARE_API_TOKEN` from the `workers-deploy` template (Workers Scripts and KV Storage write: the Worker's deploy — it cannot touch R2); `CLOUDFLARE_R2_TOKEN` from `r2-data` (Workers R2 Storage Write: the R2 root's apply, which binds it as its `CLOUDFLARE_API_TOKEN`); `CLOUDFLARE_ACCOUNT_ID`, the connection fact both bind |
+| `task` | finds the phase's task and yields its key — waiting, if it must, for the background set-up |
+| `land` | one PR bound to the task, its commit checked in the box first (`checks: local`: `orun validate`, then `orun plan` as the PR and as the merge would plan it, under a second); merged without waiting for the PR's CI |
+| `converge` (await) | `orun.run/watch@v1` on the merge commit's run, read every 5 s; resumes it up to three times |
 | `verify` (await) | `orun.http/probe@v1` on both workers.dev URLs |
 
 ## What the convergence does
@@ -44,14 +44,17 @@ promotion gate deferred:
 | `cloudflare-r2 · stage` / `· prod` | nothing | `terraform apply` of `stg-<reponame>-stage` / `prod-<reponame>-prod` with the `r2-data` token, adopting a bucket of that name if one exists (`adopt.tf`), then lease-publishes `WIRING_CLOUDFLARE_R2` = `{r2_bucket_name}` on that environment |
 | `stage · web` / `prod · web` | that environment's R2 apply (`dependsOn: cloudflare-r2`, `mode: enforced` on main) | resolves `WIRING_CLOUDFLARE_R2_<ENV>` as it starts, renders `wrangler.jsonc` with the real bucket name, builds with OpenNext, deploys `<reponame>-web-<env>` with the `workers-deploy` token, and smoke-tests it: `/api/blob` asked for an object nobody stored must answer the route's own `Not found` 404 — which only the Worker reading its bucket can — and `/` must render the uploader. Nothing is uploaded |
 
-Stage and prod run side by side. `web-tests` verifies on dev only, so on the
-merge its gate is the pull request's Checks run, which the landing waited
-for.
+Stage and prod run side by side. `web-tests` verifies on dev only, on a
+pull request. The landing's own pull request runs `plan` alone, and nothing
+waits for it — the same plan ran in the box before the push: the baseline's
+own CI installed, type-checked, linted, tested and built this exact tree
+before the tag was cut.
 
 ## Verified
 
-The convergence run for the merge commit is green; `WIRING_CLOUDFLARE_R2`
-exists on stage and prod; `https://<reponame>-web-{stage,prod}.<subdomain>.workers.dev`
+The convergence run for the merge commit is green — the uploader's deploys
+resolved `WIRING_CLOUDFLARE_R2` from stage and prod, where every later run
+reads it; `https://<reponame>-web-{stage,prod}.<subdomain>.workers.dev`
 answer.
 
 ## Troubleshooting
@@ -60,6 +63,7 @@ answer.
 |---|---|
 | parks on the `providers` probe | GitHub (on the repository's owner) or Cloudflare is not connected to the workspace. Connect it (console → Integrations), then re-run the phase — the probe is a wait, not a failure |
 | stops at `link` | the repository is not linked to the workspace and the credential cannot link it. Allow-list it (console → Settings → Git repos) and re-run the phase |
+| `land`: `the landing's own check failed — orun plan for …` | the placed tree does not plan; the next line is orun's error. Nothing was pushed. Fix it and re-run the phase |
 | R2 lane: `Please enable R2 through the Cloudflare Dashboard` | R2 is not enabled on the account. Enable it once (dashboard → R2 — the free tier needs no plan change, but Cloudflare asks for it to be switched on), then re-run the phase |
 | R2 lane: the bucket name is taken | `adopt.tf` imports a bucket of the same name that this account owns; if it was removed, restore it. Two products with the same `reponame` in one account share a name — use a distinct `reponame` |
 | R2 lane: Authentication error (10000) | the `r2-data` token was not minted with Workers R2 Storage Write — the connection's token lacks it. Re-issue it with the permission groups the console's Connect recipe lists, re-connect, re-run the phase |
