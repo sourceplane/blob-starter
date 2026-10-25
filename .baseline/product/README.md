@@ -11,7 +11,7 @@ environment.
 
 <!-- 02-docs:begin -->
 Not recorded yet. The bootstrap's last phase writes the live URLs, the
-workspace and the secrets inventory into
+workspace and the secrets the site uses into
 [ai/context/deployment.md](ai/context/deployment.md); how the site deploys
 and how to operate it is in
 [ai/context/operations.md](ai/context/operations.md).
@@ -66,8 +66,7 @@ There is no storage key to configure. The Worker binds the bucket as
 (placeholder names) for local work and verification, and on every deploy
 from the document the `cloudflare-r2` Terraform root publishes after its
 apply (`WIRING_CLOUDFLARE_R2`, per environment). Edit the template, then
-`pnpm run wire:fixture`; Checks fails if the committed `wrangler.jsonc` is
-not the fixture render.
+`pnpm run wire:fixture` and commit the render with the template.
 
 **Anyone can upload.** Both routes carry an "add your own authentication"
 note where a check belongs (`app/api/upload/route.ts`,
@@ -84,9 +83,11 @@ the uploader builds with that environment's bucket name and deploys — to
 only verifies. The Worker is `blob-starter-web-<env>` on your account's
 workers.dev subdomain, and every deploy is smoke-tested over HTTP: the
 delivery route must answer from the bucket and the page must render its
-uploader. `checks.yml` runs install, the fixture render, typecheck, lint,
-test and build on every pull request. (A push to `main` runs `ci.yml`
-alone, which applies, builds and deploys.)
+uploader. A pull request runs the same pipeline's verify lanes, with nothing
+applied or deployed: the R2 bucket planned for stage and prod, and the
+uploader built and dry-deployed for each environment. They do not run the
+tests or the linter — run those before you push (Getting started, above).
+(A push to `main` applies, builds and deploys.)
 
 The pipeline holds one credential, GitHub's own `GITHUB_TOKEN`. Two
 Cloudflare tokens — one that deploys Workers, one that manages R2 — and the
