@@ -135,6 +135,7 @@ orun integrations list --org <ws> --json && orun cloud check --org <ws>
 | change the page | edit `apps/web/app/page.tsx` (its name and links: `apps/web/app/site.ts`), merge |
 | change what uploads accept | `MAX_UPLOAD_BYTES` and `ALLOWED_CONTENT_TYPES` in `apps/web/lib/blob/server.ts` (and the matching browser check in `components/uploader.tsx`) |
 | deploy a change | merge to `main`; watch the run; failed lanes → `gh run rerun --failed` |
+| deploy by hand | Orunbase's Deploy button, or `gh workflow run ci.yml --ref main -f environment=<env> [-f component=<a,b>]` — the named components (blank: every one) run in that environment as a merge runs them; started off `main` it is refused |
 | redeploy without a change | edit the last line of `apps/web/component.yaml` (`# orun: redeploy <reason> <stamp>`) and merge — it is a deploy trigger, nothing reads it |
 | list or delete stored files | `wrangler r2 object …` on the bucket named in the environment's `WIRING_CLOUDFLARE_R2` (`--remote`), or the dashboard's R2 page |
 | add a binding (D1, KV, another bucket) | a Terraform root under `infra/terraform/` that publishes `WIRING_<ROOT>`, a token in `wrangler.template.jsonc`, its fixture entry, the root in the build's `--components`, the `WIRING_<ROOT>_<ENV>` secretEnv and an enforced `dependsOn` on it in `apps/web/component.yaml` |
