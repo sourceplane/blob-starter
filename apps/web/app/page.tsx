@@ -39,12 +39,12 @@ export default function Home() {
         .
       </p>
       <div className="sm:absolute sm:bottom-0 w-full px-20 py-10 flex justify-between">
-        <Link href="https://vercel.com">
+        <Link href="https://orunbase.com">
           <Image
-            src="/vercel.svg"
-            alt="Vercel Logo"
-            width={100}
-            height={24}
+            src="/orunbase.svg"
+            alt="Orunbase"
+            width={120}
+            height={22}
             priority
           />
         </Link>
