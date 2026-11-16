@@ -303,7 +303,7 @@ if s != 404 or b != b"Not found":
     bad(f"GET /api/blob for an unknown object answered {s} {b[:80]!r}, not the route's own 404")
 
 for path, want, ctype in (("/opengraph-image.png", 200, "image/png"), ("/favicon.ico", 200, "image/"),
-                          ("/vercel.svg", 200, "image/svg+xml"), ("/github.svg", 200, "image/svg+xml"),
+                          ("/orunbase.svg", 200, "image/svg+xml"), ("/github.svg", 200, "image/svg+xml"),
                           ("/no-such-page", 404, "text/html")):
     s, ct, b = get(path)
     if s != want or not ct.startswith(ctype):
